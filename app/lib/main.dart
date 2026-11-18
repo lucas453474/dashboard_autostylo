@@ -92,6 +92,15 @@ class EstadoInicial extends State<TelaInicial> {
   Future<void> entrou(String tokenRecebido, List<Atendimento> lista) async {
     token = tokenRecebido;
 
+    // Quem pediu "reduzir movimento" no sistema vai direto para o dashboard (sem a logo voando)
+    if (MediaQuery.disableAnimationsOf(context)) {
+      setState(() {
+        atendimentos = lista;
+        fase = 6;
+      });
+      return;
+    }
+
     // 1. O botão Entrar vira "✓ Login realizado"
     setState(() {
       fase = 1;
@@ -169,15 +178,36 @@ class EstadoInicial extends State<TelaInicial> {
     });
   }
 
-  // Desenha o blur com a intensidade do momento (de 0 = sem blur até blurForte).
-  // O TweenAnimationBuilder chama esta função a cada quadro, com a intensidade mudando aos poucos.
-  // (Não dá para usar AnimatedOpacity aqui: com opacidade, o blur para de borrar o fundo)
-  Widget desenharBlur(BuildContext context, double intensidade, Widget? filho) {
-    double escuro = 0.4 * intensidade / blurForte; // o fundo escuro some junto com o blur
+  // O blur é uma camada FIXA (sempre blurForte); o que anima é só a OPACIDADE dela.
+  // O TweenAnimationBuilder chama esta função a cada quadro, com a opacidade indo de 1 até 0.
+  //
+  // Por que não AnimatedOpacity? Dentro de uma camada de opacidade, o BackdropFilter só
+  // "enxerga" essa camada (que começa vazia), e aí não tem nada para borrar.
+  // A saída: colocar a opacidade DENTRO do filtro. Primeiro borra (sigma fixo) e depois
+  // uma matriz de cor multiplica o alfa da imagem borrada pela opacidade. O resultado é
+  // desenhado por cima do fundo nítido: opacidade 1 = todo borrado, 0 = todo nítido.
+  Widget desenharBlur(BuildContext context, double opacidade, Widget? filho) {
+    ColorFilter alfa = ColorFilter.matrix(<double>[
+      1, 0, 0, 0, 0, // vermelho igual
+      0, 1, 0, 0, 0, // verde igual
+      0, 0, 1, 0, 0, // azul igual
+      0, 0, 0, opacidade, 0, // alfa x opacidade
+    ]);
+    ImageFilter blurFixo = ImageFilter.blur(sigmaX: blurForte, sigmaY: blurForte);
+    double escuro = 0.4 * opacidade; // o fundo escuro some junto com o blur
     return BackdropFilter(
-      filter: ImageFilter.blur(sigmaX: intensidade, sigmaY: intensidade),
+      filter: ImageFilter.compose(outer: alfa, inner: blurFixo),
       child: Container(color: Color.fromRGBO(0, 0, 0, escuro)),
     );
+  }
+
+  // Curva da logo: crescer é uma ENTRADA (freia no fim);
+  // ir até o menu é um MOVIMENTO de um lugar a outro (acelera e freia)
+  Curve curvaDaLogo() {
+    if (fase == 3) {
+      return curvaEntrada;
+    }
+    return curvaMovimento;
   }
 
   // A cópia da logo muda de velocidade conforme a fase
@@ -196,9 +226,9 @@ class EstadoInicial extends State<TelaInicial> {
     // O que aparece em cada fase
     bool mostrarLogoMenu = fase <= 1 || fase >= 5;
     bool mostrarMoldura = fase <= 3 || fase >= 5;
-    double intensidadeBlur = blurForte;
+    double opacidadeBlur = 1;
     if (fase >= 4) {
-      intensidadeBlur = 0;
+      opacidadeBlur = 0;
     }
 
     // Camada 1: o dashboard (sem clique até a animação terminar)
@@ -223,8 +253,9 @@ class EstadoInicial extends State<TelaInicial> {
         Positioned.fill(
           // begin só vale na primeira vez; depois ele anima do valor atual até o end
           child: TweenAnimationBuilder<double>(
-            tween: Tween<double>(begin: blurForte, end: intensidadeBlur),
+            tween: Tween<double>(begin: 1, end: opacidadeBlur),
             duration: const Duration(milliseconds: tempoLogoDesliza),
+            curve: curvaEntrada, // o fundo fica nítido logo no começo e termina suave
             builder: desenharBlur,
           ),
         ),
@@ -241,7 +272,7 @@ class EstadoInicial extends State<TelaInicial> {
       camadas.add(
         AnimatedPositioned(
           duration: Duration(milliseconds: tempoDaLogo()),
-          curve: Curves.easeInOut,
+          curve: curvaDaLogo(),
           left: logoVoando.left,
           top: logoVoando.top,
           width: logoVoando.width,

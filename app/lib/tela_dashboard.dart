@@ -134,21 +134,30 @@ class EstadoDashboard extends State<TelaDashboard> {
     return 0;
   }
 
-  // Card/gráfico que "aparece": fade + escala 0.95 -> 1.0
+  // Card/gráfico que "aparece": fade + sobe 12 px + escala 0.98 -> 1.0.
+  // Subir um pouco dá direção (de baixo para o lugar certo); a escala é só um toque.
   Widget aparecer(int indice, Widget filho) {
     bool visivel = widget.graficosVisiveis[indice];
-    double escala = 0.95;
+    double escala = 0.98;
+    double descida = 12; // pixels abaixo do lugar final
     if (visivel) {
       escala = 1;
+      descida = 0;
     }
     return AnimatedOpacity(
       opacity: opacidade(visivel),
       duration: const Duration(milliseconds: tempoGrafico),
-      child: AnimatedScale(
-        scale: escala,
+      curve: curvaEntrada,
+      child: AnimatedContainer(
         duration: const Duration(milliseconds: tempoGrafico),
-        curve: Curves.easeOut,
-        child: filho,
+        curve: curvaEntrada,
+        transform: Matrix4.translationValues(0, descida, 0),
+        child: AnimatedScale(
+          scale: escala,
+          duration: const Duration(milliseconds: tempoGrafico),
+          curve: curvaEntrada,
+          child: filho,
+        ),
       ),
     );
   }
@@ -158,6 +167,7 @@ class EstadoDashboard extends State<TelaDashboard> {
     return AnimatedOpacity(
       opacity: opacidade(widget.mostrarMoldura),
       duration: const Duration(milliseconds: tempoMolduraAparece),
+      curve: curvaEntrada,
       child: filho,
     );
   }
@@ -418,8 +428,15 @@ class EstadoDashboard extends State<TelaDashboard> {
       paginaEscolhida = paginaFinanceiro(filtrados);
     }
     // A chave com o nome da página faz o Flutter montar a página do zero ao trocar,
-    // assim as barras não "deslizam" da página anterior (só animam ao mudar o filtro)
-    Widget conteudo = KeyedSubtree(key: ValueKey<String>(pagina), child: paginaEscolhida);
+    // assim as barras não "deslizam" da página anterior (só animam ao mudar o filtro).
+    // O AnimatedSwitcher troca uma página pela outra com fade (a antiga sai mais rápido)
+    Widget conteudo = AnimatedSwitcher(
+      duration: const Duration(milliseconds: tempoTrocaPagina),
+      reverseDuration: const Duration(milliseconds: tempoTrocaPagina * 3 ~/ 4),
+      switchInCurve: curvaEntrada,
+      switchOutCurve: curvaSaida,
+      child: KeyedSubtree(key: ValueKey<String>(pagina), child: paginaEscolhida),
+    );
 
     // Desenhamos tudo num "quadro" de 1280x720 (igual à página do BI)
     // e o FittedBox aumenta ou diminui o quadro para caber na janela

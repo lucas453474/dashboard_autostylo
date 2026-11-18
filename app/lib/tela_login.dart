@@ -103,9 +103,28 @@ class EstadoLogin extends State<TelaLogin> {
     widget.aoEntrar(token, criarListaAtendimentos(dados['DADOS']));
   }
 
+  // Nome do estado do botão: quando ele muda, o AnimatedSwitcher troca o texto com fade
+  String estadoDoBotao() {
+    if (widget.sucesso) {
+      return 'sucesso';
+    }
+    if (carregando) {
+      return 'carregando';
+    }
+    return 'entrar';
+  }
+
   // Apertar Enter no campo de senha também faz o login
   void entrarComEnter(String texto) {
     entrar();
+  }
+
+  // Desenha a mensagem de erro com a opacidade do momento (de 0 até 1)
+  Widget desenharErro(BuildContext context, double opacidade, Widget? filho) {
+    return Opacity(
+      opacity: opacidade,
+      child: Text(erro, style: const TextStyle(color: corErro, fontSize: 13)),
+    );
   }
 
   // Aparência dos campos de texto
@@ -171,13 +190,23 @@ class EstadoLogin extends State<TelaLogin> {
     ];
     if (erro.isNotEmpty) {
       filhos.add(const SizedBox(height: 12));
-      filhos.add(Text(erro, style: const TextStyle(color: corErro, fontSize: 13)));
+      // A mensagem aparece com fade (o tremor do card já chama a atenção)
+      filhos.add(
+        TweenAnimationBuilder<double>(
+          key: ValueKey<String>(erro),
+          tween: Tween<double>(begin: 0, end: 1),
+          duration: const Duration(milliseconds: tempoCorBotao),
+          curve: curvaEntrada,
+          builder: desenharErro,
+        ),
+      );
     }
     filhos.add(const SizedBox(height: 20));
     // AnimatedContainer: a cor do botão muda devagar (azul -> verde)
     filhos.add(
       AnimatedContainer(
         duration: const Duration(milliseconds: tempoCorBotao),
+        curve: curvaEntrada,
         width: double.infinity,
         height: 44,
         decoration: BoxDecoration(color: corBotao, borderRadius: BorderRadius.circular(6)),
@@ -188,29 +217,38 @@ class EstadoLogin extends State<TelaLogin> {
             disabledForegroundColor: corTexto,
             textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
           ),
-          child: textoBotao,
+          // AnimatedSwitcher: o texto antigo some e o novo aparece com fade (sem "pulo")
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: tempoCorBotao),
+            switchInCurve: curvaEntrada,
+            switchOutCurve: curvaSaida,
+            child: KeyedSubtree(key: ValueKey<String>(estadoDoBotao()), child: textoBotao),
+          ),
         ),
       ),
     );
 
-    // Card sumindo: escala 1.0 -> 0.9 e opacidade 1 -> 0
+    // Card sumindo: escala 1.0 -> 0.96 e opacidade 1 -> 0 (pouca escala: é só uma "pista")
     double escalaCard = 1;
     double opacidadeCard = 1;
     if (widget.sumindo) {
-      escalaCard = 0.9;
+      escalaCard = 0.96;
       opacidadeCard = 0;
     }
 
     // Por fora: o tremor (AnimatedContainer move o card para os lados)
     return AnimatedContainer(
       duration: Duration(milliseconds: tempoTremor ~/ 7),
+      curve: Curves.easeInOutSine, // cada ida e volta é macia, como uma mola amortecida
       transform: Matrix4.translationValues(deslocamento, 0, 0),
       child: AnimatedOpacity(
         opacity: opacidadeCard,
         duration: const Duration(milliseconds: tempoCardSome),
+        curve: curvaSaida,
         child: AnimatedScale(
           scale: escalaCard,
           duration: const Duration(milliseconds: tempoCardSome),
+          curve: curvaSaida,
           child: Container(
             width: 360,
             padding: const EdgeInsets.all(32),

@@ -124,7 +124,7 @@ class BarrasHorizontais extends StatelessWidget {
               message: '${nomes[i]}: ${formatarValor(valores[i], formato)}',
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: tempoBarras),
-                curve: Curves.easeOut,
+                curve: curvaEntrada,
                 width: limites.maxWidth * valores[i] / maior,
                 height: 12,
                 color: corBarraHorizontal,
@@ -215,7 +215,7 @@ class BarrasVerticais extends StatelessWidget {
                 message: '${dicas[i]}: ${formatarValor(valores[i], formato)}',
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: tempoBarras),
-                  curve: Curves.easeOut,
+                  curve: curvaEntrada,
                   width: double.infinity,
                   height: limites.maxHeight * valores[i] / maior,
                   color: corBarraVertical,
@@ -422,7 +422,9 @@ class GraficoLinha extends StatelessWidget {
           ),
         ],
       ),
-      duration: Duration.zero, // sem animação na Fase 1
+      // A linha desliza até os novos valores quando o filtro muda (igual às barras)
+      duration: const Duration(milliseconds: tempoBarras),
+      curve: curvaEntrada,
     );
   }
 }
@@ -574,15 +576,23 @@ class ItemMenu extends StatelessWidget {
       barrinha = corMenuAtivo;
     }
 
+    // AnimatedContainer: o fundo e a barrinha mudam rápido, mas sem "piscar"
     return InkWell(
       onTap: aoClicar,
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: tempoClique),
+        curve: curvaEntrada,
         height: 40,
         margin: const EdgeInsets.symmetric(vertical: 3),
         decoration: BoxDecoration(color: fundo, borderRadius: BorderRadius.circular(6)),
         child: Row(
           children: [
-            Container(width: 4, color: barrinha),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: tempoClique),
+              curve: curvaEntrada,
+              width: 4,
+              color: barrinha,
+            ),
             const SizedBox(width: 12),
             Icon(icone, color: corTexto, size: 18),
             const SizedBox(width: 12),
