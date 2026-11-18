@@ -1,0 +1,12 @@
+# Material de referência (tem dados reais de clientes)
+kit_dashboard_autostylo/
+
+# Dados de conexão com o banco (senha)
+api/lib/config.dart
+
+# Arquivos gerados pelo Dart/Flutter
+.dart_tool/
+build/
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
