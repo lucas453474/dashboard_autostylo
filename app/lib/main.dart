@@ -22,7 +22,12 @@ class AppAutoStylo extends StatelessWidget {
     return MaterialApp(
       title: 'Dashboard Auto Stylo',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(brightness: Brightness.dark, scaffoldBackgroundColor: corFundo),
+      // fontFamily: a fonte que vem dentro do app (pubspec.yaml), para não depender da internet
+      theme: ThemeData(
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: corFundo,
+        fontFamily: 'RobotoLocal',
+      ),
       home: const TelaInicial(),
     );
   }
