@@ -4,12 +4,16 @@ import 'atendimento.dart';
 import 'calculos.dart';
 import 'componentes.dart';
 import 'cores.dart';
+import 'formulario.dart';
 
 // Tela do dashboard: menu lateral, cabeçalho com filtros e a página escolhida
 class TelaDashboard extends StatefulWidget {
   final List<Atendimento> atendimentos;
+  final String token;
+  // Função da tela principal que busca os dados de novo depois de um cadastro
+  final Future<void> Function() aoCadastrar;
 
-  const TelaDashboard(this.atendimentos, {super.key});
+  const TelaDashboard(this.atendimentos, this.token, this.aoCadastrar, {super.key});
 
   @override
   State<TelaDashboard> createState() {
@@ -54,6 +58,58 @@ class EstadoDashboard extends State<TelaDashboard> {
     });
   }
 
+  // Monta a janela do formulário (o showDialog pede uma função que devolve o widget)
+  Widget montarFormulario(BuildContext context) {
+    return FormularioAtendimento(widget.token);
+  }
+
+  // Abre o formulário; se salvou, recarrega os dados e mostra a mensagem da API
+  Future<void> abrirFormulario() async {
+    String? mensagem = await showDialog<String>(context: context, builder: montarFormulario);
+    if (mensagem == null) {
+      return;
+    }
+    await widget.aoCadastrar();
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mensagem)));
+  }
+
+  // Itens da listinha do botão "+ Adicionar"
+  List<PopupMenuEntry<String>> itensDoMenu(BuildContext context) {
+    return [
+      const PopupMenuItem<String>(
+        value: 'atendimento',
+        child: Text('Novo atendimento', style: TextStyle(color: corTexto, fontSize: 13)),
+      ),
+    ];
+  }
+
+  // Clique num item da listinha
+  void escolheuNoMenu(String opcao) {
+    if (opcao == 'atendimento') {
+      abrirFormulario();
+    }
+  }
+
+  // Botão "+ Adicionar", com o mesmo estilo dos filtros
+  Widget botaoAdicionar() {
+    return PopupMenuButton<String>(
+      itemBuilder: itensDoMenu,
+      onSelected: escolheuNoMenu,
+      color: corFiltro,
+      offset: const Offset(0, 34),
+      child: Container(
+        width: 150,
+        height: 30,
+        alignment: Alignment.center,
+        decoration: decoracaoFiltro(),
+        child: const Text('+ Adicionar', style: TextStyle(color: corTexto, fontSize: 12)),
+      ),
+    );
+  }
+
   // MENU LATERAL: logo, linha separadora, Operação e Financeiro
   Widget menuLateral() {
     return Container(
@@ -73,7 +129,7 @@ class EstadoDashboard extends State<TelaDashboard> {
     );
   }
 
-  // CABEÇALHO: título da página e os filtros
+  // CABEÇALHO: título da página, os filtros e o botão "+ Adicionar"
   Widget cabecalho() {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -91,6 +147,8 @@ class EstadoDashboard extends State<TelaDashboard> {
           'CARTÃO',
           'PIX',
         ], mudarForma),
+        const SizedBox(width: 16),
+        botaoAdicionar(),
       ],
     );
   }

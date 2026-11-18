@@ -66,7 +66,9 @@ class EstadoInicial extends State<TelaInicial> {
   @override
   Widget build(BuildContext context) {
     // Camada 1: o dashboard (sem clique enquanto não tiver login)
-    List<Widget> camadas = [AbsorbPointer(absorbing: !logado, child: TelaDashboard(atendimentos))];
+    List<Widget> camadas = [
+      AbsorbPointer(absorbing: !logado, child: TelaDashboard(atendimentos, token, recarregarDados)),
+    ];
 
     // Camadas 2 e 3: blur forte por cima e o card de login no meio
     if (!logado) {
