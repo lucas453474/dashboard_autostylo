@@ -1,8 +1,11 @@
 # Material de referência (tem dados reais de clientes)
 kit_dashboard_autostylo/
 
-# Dados de conexão com o banco (senha)
-api/lib/config.dart
+# Dados de conexão com o banco (senha) - em qualquer pasta
+config.txt
+
+# Pacote para o PC da faculdade (executável + config.txt com senha)
+pacote_facul/
 
 # Arquivos gerados pelo Dart/Flutter
 .dart_tool/

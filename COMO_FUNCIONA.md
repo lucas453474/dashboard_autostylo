@@ -30,9 +30,9 @@ Guia de estudo da Fase 1. A ideia é você conseguir explicar cada parte para a 
 | Arquivo | O que faz |
 |---|---|
 | `bin/servidor.dart` | Liga o servidor na porta 8080 e decide o que fazer em cada rota (`/login`, `/atendimentos`, `/cadastrar`). Também coloca os cabeçalhos de CORS e aplica os limites. |
-| `lib/conexao.dart` | Abre a conexão com o MySQL (como o meu `conexao.php`). |
-| `lib/config.dart` | Os dados de conexão (host, usuário, **senha**). **Não vai para o Git.** |
-| `lib/config_exemplo.dart` | Modelo do `config.dart`, sem a senha. |
+| `lib/conexao.dart` | `lerConfig()` lê o `config.txt` (mesma lógica da aula de arquivos: `File`, `existsSync`, `readAsLinesSync`, `split(';')`) e `abrirConexao()` abre a conexão com o MySQL (como o meu `conexao.php`). Sem `config.txt`, a API mostra o erro no terminal e não liga. |
+| `config.txt` | Os dados de conexão numa linha só: `host;porta;usuario;senha;banco`. Tem a **senha**, então **não vai para o Git**. |
+| `config_exemplo.txt` | Modelo do `config.txt`, sem a senha. |
 | `lib/funcoes.dart` | Uma função por ação, como o meu `funcao.php`: `fazerLogin`, `listaAtendimentos`, `cadastrarAtendimento` e as auxiliares (`buscarOuCriarCliente`, `garantirData`...). |
 | `lib/limite.dart` | Limite de requisições com `Map`: 5 logins por minuto e 60 requisições por minuto por IP. |
 
@@ -85,7 +85,7 @@ Guia de estudo da Fase 1. A ideia é você conseguir explicar cada parte para a 
 - **Consultas com parâmetros** (`:login`, `:placa`...): o valor nunca é colado no SQL.
 - **Limite de requisições** por IP (`limite.dart`).
 - **Token** obrigatório para ver e cadastrar dados.
-- `config.dart` (senha do banco) fora do Git.
+- `config.txt` (senha do banco) fora do código e fora do Git. Para trocar de computador (ex.: PC da faculdade), basta trocar o `config.txt`, sem recompilar nada.
 - Antes do login, o fundo borrado usa **dados falsos**: nenhum nome ou placa real chega no navegador sem login.
 
 ## 5. Perguntas que o professor pode fazer

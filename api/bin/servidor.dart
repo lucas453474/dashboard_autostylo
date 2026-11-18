@@ -4,9 +4,12 @@ import 'dart:io';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 
-import 'package:api/config.dart';
+import 'package:api/conexao.dart';
 import 'package:api/funcoes.dart';
 import 'package:api/limite.dart';
+
+// Porta em que a API vai rodar (o app procura a API em http://127.0.0.1:8080)
+const int apiPorta = 8080;
 
 // Cabeçalhos de CORS: deixam o app (que roda em outra porta) falar com a API
 Map<String, String> cabecalhos = {
@@ -100,6 +103,12 @@ Future<Response> tratarRequisicao(Request requisicao) async {
 
 // Liga o servidor
 Future<void> main() async {
+  // Sem config.txt (ou com ele errado) a API não liga: mostra a mensagem e para
+  if (!lerConfig()) {
+    exitCode = 1;
+    return;
+  }
+
   HttpServer servidor = await shelf_io.serve(tratarRequisicao, '127.0.0.1', apiPorta);
   print('API rodando em http://${servidor.address.host}:${servidor.port}');
 }
