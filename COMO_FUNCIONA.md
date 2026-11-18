@@ -41,6 +41,7 @@ Guia de estudo da Fase 1. A ideia é você conseguir explicar cada parte para a 
 |---|---|
 | `main.dart` | Liga o app. A `TelaInicial` empilha (Stack) o dashboard, o blur e o card de login. |
 | `cores.dart` | As cores tiradas dos prints do BI. |
+| `tempos.dart` | Todos os tempos das animações (em milissegundos), para ajustar num lugar só. |
 | `atendimento.dart` | A classe `Atendimento`, a função `criarAtendimento(Map)` (JSON → classe) e os **dados falsos** do fundo borrado. |
 | `api.dart` | As 3 chamadas para a API: `fazerLogin`, `buscarAtendimentos`, `cadastrarAtendimento`. |
 | `calculos.dart` | Filtros, totais, médias, agrupamentos (top 5, por mês) e a formatação em reais. |
@@ -104,7 +105,37 @@ Tudo roda numa transação. Se qualquer passo falhar (por exemplo, um texto gran
 **5. Como funciona o limite de tentativas de login?**
 Em `limite.dart` existe um `Map` com o IP como chave e quantas requisições ele fez no minuto. A cada login somamos 1; se passar de 5 dentro do mesmo minuto, a API responde "Muitas tentativas de login. Espere 1 minuto." e nem consulta o banco. Passou 1 minuto, a contagem zera.
 
-## 6. Limitações conhecidas (para não ser pego de surpresa)
+## 6. Animações (Fase 2)
+
+A ideia é sempre a mesma: **uma variável muda com `setState` e um widget "Animated..." faz a transição sozinho**. Não usamos `AnimationController`.
+
+### A sequência do login certo (`entrou()` em `main.dart`)
+Uma variável `int fase` vai de 0 a 6. Entre uma fase e outra, `await Future.delayed(...)` espera o tempo da fase.
+
+| Fase | O que acontece | Widget que anima |
+|---|---|---|
+| 0 | Card de login sobre o dashboard borrado (dados falsos) | — |
+| 1 | O botão vira **✓ Login realizado** (verde) | `AnimatedContainer` (cor) |
+| 2 | O card encolhe (1.0 → 0.9) e some; a logo fica | `AnimatedScale` + `AnimatedOpacity` |
+| 3 | A logo cresce até ~60% da largura da tela | `AnimatedPositioned` |
+| 4 | A logo encolhe e voa até o menu; o blur some; os dados reais entram (escondidos) | `AnimatedPositioned` + `TweenAnimationBuilder` (blur) |
+| 5 | Menu e cabeçalho aparecem; depois os cards e gráficos, um por um | `AnimatedOpacity` + `AnimatedScale` |
+| 6 | Pronto: o dashboard é liberado para clique | — |
+
+**A logo que voa é uma cópia.** As duas logos de verdade (a do card e a do menu) têm uma `GlobalKey`, uma "etiqueta" que permite perguntar ao Flutter onde o widget está na tela (`retanguloNaTela`). A cópia começa exatamente em cima da logo do card e termina exatamente em cima da logo do menu. No mesmo `setState` em que a cópia sai, a logo do menu aparece, por isso não tem pulo.
+
+**Os gráficos um por um:** `graficosVisiveis` é uma `List<bool>` (um item por card/gráfico, na ordem de leitura). Um `for` liga um de cada vez, com `setState` e uma espera de 80 ms. Cada card usa `aparecer(indice, ...)` em `tela_dashboard.dart`.
+
+**Por que o blur usa `TweenAnimationBuilder` e não `AnimatedOpacity`?** Com opacidade, o `BackdropFilter` para de borrar o fundo na hora (ele passa a "enxergar" uma camada vazia). Por isso animamos a intensidade do blur (de 14 até 0).
+
+### Outras animações
+- **Login errado:** `tremer()` em `tela_login.dart` muda o deslocamento do card (12, −12, 9, −9, 5, −5, 0) com `setState`, e o `AnimatedContainer` faz o movimento.
+- **Filtros:** cada barra é um `AnimatedContainer`. Quando o filtro muda, a largura (ou altura) muda e a barra desliza até o novo tamanho. O `LayoutBuilder` informa o espaço disponível para calcular o tamanho em pixels.
+- **Trocar de página não repete nada:** a lista `graficosVisiveis` continua toda `true` depois do login, e cada página tem uma `ValueKey` própria (assim as barras não deslizam de uma página para a outra).
+
+Todos os tempos ficam em `tempos.dart` (ex.: `tempoLogoCresce = 500`). Do clique até o último gráfico: ~2,7 s mais o tempo de resposta da API.
+
+## 7. Limitações conhecidas (para não ser pego de surpresa)
 - Os **tokens ficam na memória** da API: se a API reiniciar, é preciso fazer login de novo.
 - Os IDs "maior + 1" funcionam bem com um usuário cadastrando por vez (é o caso da oficina).
 - O **calendário** do formulário aparece em inglês, porque traduzir exige o pacote `flutter_localizations`, que não está na lista de pacotes permitidos. Os textos que nós escrevemos estão em português.

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import 'calculos.dart';
 import 'cores.dart';
+import 'tempos.dart';
 
 // Estilos de texto usados em vários lugares
 const TextStyle estiloTituloCaixa = TextStyle(color: corTexto, fontSize: 11);
@@ -109,6 +110,33 @@ class BarrasHorizontais extends StatelessWidget {
 
   const BarrasHorizontais(this.nomes, this.valores, this.formato, {super.key});
 
+  // Desenha as barras. O LayoutBuilder entrega a largura disponível (limites.maxWidth)
+  // e o AnimatedContainer faz a barra deslizar até o novo tamanho quando o filtro muda.
+  Widget desenharBarras(BuildContext context, BoxConstraints limites) {
+    double maior = maiorValor(valores);
+    List<Widget> colunaBarras = [];
+    for (int i = 0; i < nomes.length; i++) {
+      colunaBarras.add(
+        Expanded(
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Tooltip(
+              message: '${nomes[i]}: ${formatarValor(valores[i], formato)}',
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: tempoBarras),
+                curve: Curves.easeOut,
+                width: limites.maxWidth * valores[i] / maior,
+                height: 12,
+                color: corBarraHorizontal,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    return Column(children: colunaBarras);
+  }
+
   @override
   Widget build(BuildContext context) {
     double maior = maiorValor(valores);
@@ -117,29 +145,14 @@ class BarrasHorizontais extends StatelessWidget {
     }
     double passo = passoDoEixo(maior);
 
-    // Nomes à esquerda e barras à direita
+    // Nomes à esquerda (as barras ficam à direita, em desenharBarras)
     List<Widget> colunaNomes = [];
-    List<Widget> colunaBarras = [];
     for (int i = 0; i < nomes.length; i++) {
       colunaNomes.add(
         Expanded(
           child: Align(
             alignment: Alignment.centerRight,
             child: Text(nomes[i], style: estiloEixo, overflow: TextOverflow.ellipsis),
-          ),
-        ),
-      );
-      colunaBarras.add(
-        Expanded(
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: FractionallySizedBox(
-              widthFactor: valores[i] / maior,
-              child: Tooltip(
-                message: '${nomes[i]}: ${formatarValor(valores[i], formato)}',
-                child: Container(height: 12, color: corBarraHorizontal),
-              ),
-            ),
           ),
         ),
       );
@@ -158,7 +171,7 @@ class BarrasHorizontais extends StatelessWidget {
         ),
       );
     }
-    grade.add(Column(children: colunaBarras));
+    grade.add(LayoutBuilder(builder: desenharBarras));
 
     return Row(
       children: [
@@ -186,6 +199,36 @@ class BarrasVerticais extends StatelessWidget {
 
   const BarrasVerticais(this.rotulos, this.dicas, this.valores, this.formato, {super.key});
 
+  // Desenha as barras. O LayoutBuilder entrega a altura disponível (limites.maxHeight)
+  // e o AnimatedContainer faz a barra subir/descer até o novo tamanho quando o filtro muda.
+  Widget desenharBarras(BuildContext context, BoxConstraints limites) {
+    double maior = maiorValor(valores);
+    List<Widget> barras = [];
+    for (int i = 0; i < valores.length; i++) {
+      barras.add(
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: Tooltip(
+                message: '${dicas[i]}: ${formatarValor(valores[i], formato)}',
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: tempoBarras),
+                  curve: Curves.easeOut,
+                  width: double.infinity,
+                  height: limites.maxHeight * valores[i] / maior,
+                  color: corBarraVertical,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    return Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: barras);
+  }
+
   @override
   Widget build(BuildContext context) {
     double maior = maiorValor(valores);
@@ -207,27 +250,9 @@ class BarrasVerticais extends StatelessWidget {
       );
     }
 
-    // Uma barra e um rótulo para cada valor
-    List<Widget> barras = [];
+    // Um rótulo embaixo de cada barra (as barras ficam em desenharBarras)
     List<Widget> textosEmbaixo = [];
     for (int i = 0; i < valores.length; i++) {
-      barras.add(
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Align(
-              alignment: Alignment.bottomCenter,
-              child: FractionallySizedBox(
-                heightFactor: valores[i] / maior,
-                child: Tooltip(
-                  message: '${dicas[i]}: ${formatarValor(valores[i], formato)}',
-                  child: Container(color: corBarraVertical),
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
       textosEmbaixo.add(
         Expanded(
           child: Center(
@@ -241,7 +266,7 @@ class BarrasVerticais extends StatelessWidget {
         ),
       );
     }
-    grade.add(Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: barras));
+    grade.add(LayoutBuilder(builder: desenharBarras));
 
     return Column(
       children: [

@@ -5,6 +5,7 @@ import 'calculos.dart';
 import 'componentes.dart';
 import 'cores.dart';
 import 'formulario.dart';
+import 'tempos.dart';
 
 // Tela do dashboard: menu lateral, cabeçalho com filtros e a página escolhida
 class TelaDashboard extends StatefulWidget {
@@ -13,7 +14,22 @@ class TelaDashboard extends StatefulWidget {
   // Função da tela principal que busca os dados de novo depois de um cadastro
   final Future<void> Function() aoCadastrar;
 
-  const TelaDashboard(this.atendimentos, this.token, this.aoCadastrar, {super.key});
+  // Controles da animação de entrada (quem decide é a tela principal, em main.dart)
+  final GlobalKey chaveLogo; // "etiqueta" para descobrir onde a logo do menu está na tela
+  final bool mostrarLogo;
+  final bool mostrarMoldura; // menu (itens) + cabeçalho
+  final List<bool> graficosVisiveis; // um bool para cada card/gráfico, na ordem de leitura
+
+  const TelaDashboard(
+    this.atendimentos,
+    this.token,
+    this.aoCadastrar,
+    this.chaveLogo,
+    this.mostrarLogo,
+    this.mostrarMoldura,
+    this.graficosVisiveis, {
+    super.key,
+  });
 
   @override
   State<TelaDashboard> createState() {
@@ -110,6 +126,42 @@ class EstadoDashboard extends State<TelaDashboard> {
     );
   }
 
+  // Opacidade 1 (aparece) ou 0 (escondido)
+  double opacidade(bool visivel) {
+    if (visivel) {
+      return 1;
+    }
+    return 0;
+  }
+
+  // Card/gráfico que "aparece": fade + escala 0.95 -> 1.0
+  Widget aparecer(int indice, Widget filho) {
+    bool visivel = widget.graficosVisiveis[indice];
+    double escala = 0.95;
+    if (visivel) {
+      escala = 1;
+    }
+    return AnimatedOpacity(
+      opacity: opacidade(visivel),
+      duration: const Duration(milliseconds: tempoGrafico),
+      child: AnimatedScale(
+        scale: escala,
+        duration: const Duration(milliseconds: tempoGrafico),
+        curve: Curves.easeOut,
+        child: filho,
+      ),
+    );
+  }
+
+  // Menu e cabeçalho aparecem juntos (fade)
+  Widget moldura(Widget filho) {
+    return AnimatedOpacity(
+      opacity: opacidade(widget.mostrarMoldura),
+      duration: const Duration(milliseconds: tempoMolduraAparece),
+      child: filho,
+    );
+  }
+
   // MENU LATERAL: logo, linha separadora, Operação e Financeiro
   Widget menuLateral() {
     return Container(
@@ -119,11 +171,21 @@ class EstadoDashboard extends State<TelaDashboard> {
       child: Column(
         children: [
           const SizedBox(height: 12),
-          Image.asset('assets/logo_autostylo.png', width: 140),
+          // A logo some e aparece sem animação: quem anima é a cópia que "voa" (main.dart)
+          Opacity(
+            opacity: opacidade(widget.mostrarLogo),
+            child: Image.asset('assets/logo_autostylo.png', width: 140, key: widget.chaveLogo),
+          ),
           const SizedBox(height: 16),
-          const Divider(color: corGrade, height: 24),
-          ItemMenu(Icons.build_outlined, 'Operação', pagina == 'Operação', irParaOperacao),
-          ItemMenu(Icons.storage, 'Financeiro', pagina == 'Financeiro', irParaFinanceiro),
+          moldura(
+            Column(
+              children: [
+                const Divider(color: corGrade, height: 24),
+                ItemMenu(Icons.build_outlined, 'Operação', pagina == 'Operação', irParaOperacao),
+                ItemMenu(Icons.storage, 'Financeiro', pagina == 'Financeiro', irParaFinanceiro),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -168,10 +230,13 @@ class EstadoDashboard extends State<TelaDashboard> {
             children: [
               Expanded(
                 flex: 3,
-                child: CaixaGrafico(
-                  'Total de Atendimentos\npor AnoMes',
-                  '',
-                  GraficoLinha(porMesEntrada.nomes, porMesEntrada.valores),
+                child: aparecer(
+                  0,
+                  CaixaGrafico(
+                    'Total de Atendimentos\npor AnoMes',
+                    '',
+                    GraficoLinha(porMesEntrada.nomes, porMesEntrada.valores),
+                  ),
                 ),
               ),
               const SizedBox(width: 16),
@@ -180,14 +245,20 @@ class EstadoDashboard extends State<TelaDashboard> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Expanded(
-                      child: CardNumero(
-                        'Tempo médio de reparo (dias)',
-                        formatarNumero(tempoMedioReparo(lista), 2),
+                      child: aparecer(
+                        1,
+                        CardNumero(
+                          'Tempo médio de reparo (dias)',
+                          formatarNumero(tempoMedioReparo(lista), 2),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 16),
                     Expanded(
-                      child: CardNumero('Clientes únicos', clientesUnicos(lista).toString()),
+                      child: aparecer(
+                        2,
+                        CardNumero('Clientes únicos', clientesUnicos(lista).toString()),
+                      ),
                     ),
                   ],
                 ),
@@ -202,18 +273,24 @@ class EstadoDashboard extends State<TelaDashboard> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(
-                child: CaixaGrafico(
-                  'Atendimentos por área',
-                  '',
-                  BarrasHorizontais(porArea.nomes, porArea.valores, 'numero'),
+                child: aparecer(
+                  3,
+                  CaixaGrafico(
+                    'Atendimentos por área',
+                    '',
+                    BarrasHorizontais(porArea.nomes, porArea.valores, 'numero'),
+                  ),
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: CaixaGrafico(
-                  'Total de Atendimentos por Modelo',
-                  '',
-                  BarrasHorizontais(porModelo.nomes, porModelo.valores, 'numero'),
+                child: aparecer(
+                  4,
+                  CaixaGrafico(
+                    'Total de Atendimentos por Modelo',
+                    '',
+                    BarrasHorizontais(porModelo.nomes, porModelo.valores, 'numero'),
+                  ),
                 ),
               ),
             ],
@@ -252,11 +329,18 @@ class EstadoDashboard extends State<TelaDashboard> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(child: CardNumero('Valor dos Serviços', formatarMil(valorTotal(lista)))),
+              Expanded(
+                child: aparecer(
+                  0,
+                  CardNumero('Valor dos Serviços', formatarMil(valorTotal(lista))),
+                ),
+              ),
               const SizedBox(width: 16),
-              Expanded(child: CardNumero('Ticket Médio', formatarReais(ticketMedio(lista)))),
+              Expanded(
+                child: aparecer(1, CardNumero('Ticket Médio', formatarReais(ticketMedio(lista)))),
+              ),
               const SizedBox(width: 16),
-              Expanded(child: CardNumero('Atendimentos', lista.length.toString())),
+              Expanded(child: aparecer(2, CardNumero('Atendimentos', lista.length.toString()))),
             ],
           ),
         ),
@@ -267,19 +351,25 @@ class EstadoDashboard extends State<TelaDashboard> {
             children: [
               Expanded(
                 flex: 3,
-                child: CaixaGrafico(
-                  'Valor dos serviços por mês',
-                  'Valor dos Serviços por AnoMes',
-                  BarrasVerticais(rotulosMeses, dicasMeses, valorPorMes.valores, 'mil'),
+                child: aparecer(
+                  3,
+                  CaixaGrafico(
+                    'Valor dos serviços por mês',
+                    'Valor dos Serviços por AnoMes',
+                    BarrasVerticais(rotulosMeses, dicasMeses, valorPorMes.valores, 'mil'),
+                  ),
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
                 flex: 2,
-                child: CaixaGrafico(
-                  'Valor Por Forma de Pagamento',
-                  'Valor dos Serviços por Forma_Pagamento',
-                  BarrasVerticais(porForma.nomes, porForma.nomes, porForma.valores, 'mil'),
+                child: aparecer(
+                  4,
+                  CaixaGrafico(
+                    'Valor Por Forma de Pagamento',
+                    'Valor dos Serviços por Forma_Pagamento',
+                    BarrasVerticais(porForma.nomes, porForma.nomes, porForma.valores, 'mil'),
+                  ),
                 ),
               ),
             ],
@@ -291,18 +381,24 @@ class EstadoDashboard extends State<TelaDashboard> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(
-                child: CaixaGrafico(
-                  'Valor por área de serviço',
-                  '',
-                  BarrasHorizontais(porArea.nomes, porArea.valores, 'mil'),
+                child: aparecer(
+                  5,
+                  CaixaGrafico(
+                    'Valor por área de serviço',
+                    '',
+                    BarrasHorizontais(porArea.nomes, porArea.valores, 'mil'),
+                  ),
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: CaixaGrafico(
-                  'Resumo financeiro mensal',
-                  '',
-                  TabelaResumo(valorPorMes.nomes, valorPorMes.valores, quantidadePorMes.valores),
+                child: aparecer(
+                  6,
+                  CaixaGrafico(
+                    'Resumo financeiro mensal',
+                    '',
+                    TabelaResumo(valorPorMes.nomes, valorPorMes.valores, quantidadePorMes.valores),
+                  ),
                 ),
               ),
             ],
@@ -317,10 +413,13 @@ class EstadoDashboard extends State<TelaDashboard> {
     // O filtro só escolhe quais atendimentos entram nos cálculos
     List<Atendimento> filtrados = filtrarAtendimentos(widget.atendimentos, periodo, forma);
 
-    Widget conteudo = paginaOperacao(filtrados);
+    Widget paginaEscolhida = paginaOperacao(filtrados);
     if (pagina == 'Financeiro') {
-      conteudo = paginaFinanceiro(filtrados);
+      paginaEscolhida = paginaFinanceiro(filtrados);
     }
+    // A chave com o nome da página faz o Flutter montar a página do zero ao trocar,
+    // assim as barras não "deslizam" da página anterior (só animam ao mudar o filtro)
+    Widget conteudo = KeyedSubtree(key: ValueKey<String>(pagina), child: paginaEscolhida);
 
     // Desenhamos tudo num "quadro" de 1280x720 (igual à página do BI)
     // e o FittedBox aumenta ou diminui o quadro para caber na janela
@@ -337,8 +436,8 @@ class EstadoDashboard extends State<TelaDashboard> {
                   padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
                   child: Column(
                     children: [
-                      cabecalho(),
-                      const Divider(color: corGrade, height: 28),
+                      moldura(cabecalho()),
+                      moldura(const Divider(color: corGrade, height: 28)),
                       Expanded(child: conteudo),
                     ],
                   ),

@@ -4,13 +4,30 @@ import 'api.dart';
 import 'atendimento.dart';
 import 'componentes.dart';
 import 'cores.dart';
+import 'tempos.dart';
+
+// Verde do botão depois do login certo
+const Color corSucesso = Color(0xFF2EA043);
 
 // Card de login: logo, usuário, senha e botão Entrar
 class TelaLogin extends StatefulWidget {
   // Função da tela principal, chamada quando o login dá certo
   final void Function(String token, List<Atendimento> lista) aoEntrar;
 
-  const TelaLogin(this.aoEntrar, {super.key});
+  // Controles da animação (quem decide é a tela principal, em main.dart)
+  final GlobalKey chaveLogo; // "etiqueta" para descobrir onde a logo do card está na tela
+  final bool sucesso; // botão vira "✓ Login realizado"
+  final bool sumindo; // card encolhe e some
+  final bool esconderLogo; // a logo do card some (a cópia que voa fica no lugar dela)
+
+  const TelaLogin(
+    this.aoEntrar,
+    this.chaveLogo,
+    this.sucesso,
+    this.sumindo,
+    this.esconderLogo, {
+    super.key,
+  });
 
   @override
   State<TelaLogin> createState() {
@@ -24,13 +41,30 @@ class EstadoLogin extends State<TelaLogin> {
   TextEditingController campoSenha = TextEditingController();
   String erro = '';
   bool carregando = false;
+  double deslocamento = 0; // quanto o card está para a esquerda/direita (tremor)
 
-  // Mostra uma mensagem de erro no card
+  // Mostra uma mensagem de erro no card e faz o card tremer
   void mostrarErro(String mensagem) {
     setState(() {
       erro = mensagem;
       carregando = false;
     });
+    tremer();
+  }
+
+  // Tremor: o card vai para os lados, cada vez menos, até voltar ao centro
+  Future<void> tremer() async {
+    List<double> posicoes = [12, -12, 9, -9, 5, -5, 0];
+    int tempoPorPasso = tempoTremor ~/ posicoes.length; // ~/ = divisão inteira
+    for (double posicao in posicoes) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        deslocamento = posicao;
+      });
+      await Future.delayed(Duration(milliseconds: tempoPorPasso));
+    }
   }
 
   // Clique em Entrar: fazerLogin() -> POST /login -> buscarAtendimentos() -> GET /atendimentos
@@ -91,16 +125,35 @@ class EstadoLogin extends State<TelaLogin> {
   @override
   Widget build(BuildContext context) {
     // Enquanto espera a API, o botão fica desligado (null) e muda o texto
-    String textoBotao = 'Entrar';
+    Widget textoBotao = const Text('Entrar');
     VoidCallback? acaoBotao = entrar;
+    Color corBotao = corMenuAtivo;
     if (carregando) {
-      textoBotao = 'Entrando...';
+      textoBotao = const Text('Entrando...');
       acaoBotao = null;
+    }
+    // Login certo: botão verde com ✓
+    if (widget.sucesso) {
+      textoBotao = const Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [Icon(Icons.check, size: 20), SizedBox(width: 8), Text('Login realizado')],
+      );
+      acaoBotao = null;
+      corBotao = corSucesso;
+    }
+
+    // A logo some na hora em que a cópia que voa aparece por cima (sem pulo)
+    double opacidadeLogo = 1;
+    if (widget.esconderLogo) {
+      opacidadeLogo = 0;
     }
 
     // Logo, campos, mensagem de erro (se tiver) e botão
     List<Widget> filhos = [
-      Image.asset('assets/logo_autostylo.png', width: 200),
+      Opacity(
+        opacity: opacidadeLogo,
+        child: Image.asset('assets/logo_autostylo.png', width: 200, key: widget.chaveLogo),
+      ),
       const SizedBox(height: 28),
       TextField(
         controller: campoLogin,
@@ -121,30 +174,51 @@ class EstadoLogin extends State<TelaLogin> {
       filhos.add(Text(erro, style: const TextStyle(color: corErro, fontSize: 13)));
     }
     filhos.add(const SizedBox(height: 20));
+    // AnimatedContainer: a cor do botão muda devagar (azul -> verde)
     filhos.add(
-      SizedBox(
+      AnimatedContainer(
+        duration: const Duration(milliseconds: tempoCorBotao),
         width: double.infinity,
         height: 44,
-        child: ElevatedButton(
+        decoration: BoxDecoration(color: corBotao, borderRadius: BorderRadius.circular(6)),
+        child: TextButton(
           onPressed: acaoBotao,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: corMenuAtivo,
+          style: TextButton.styleFrom(
             foregroundColor: corTexto,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+            disabledForegroundColor: corTexto,
+            textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
           ),
-          child: Text(
-            textoBotao,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-          ),
+          child: textoBotao,
         ),
       ),
     );
 
-    return Container(
-      width: 360,
-      padding: const EdgeInsets.all(32),
-      decoration: decoracaoCaixa(),
-      child: Column(mainAxisSize: MainAxisSize.min, children: filhos),
+    // Card sumindo: escala 1.0 -> 0.9 e opacidade 1 -> 0
+    double escalaCard = 1;
+    double opacidadeCard = 1;
+    if (widget.sumindo) {
+      escalaCard = 0.9;
+      opacidadeCard = 0;
+    }
+
+    // Por fora: o tremor (AnimatedContainer move o card para os lados)
+    return AnimatedContainer(
+      duration: Duration(milliseconds: tempoTremor ~/ 7),
+      transform: Matrix4.translationValues(deslocamento, 0, 0),
+      child: AnimatedOpacity(
+        opacity: opacidadeCard,
+        duration: const Duration(milliseconds: tempoCardSome),
+        child: AnimatedScale(
+          scale: escalaCard,
+          duration: const Duration(milliseconds: tempoCardSome),
+          child: Container(
+            width: 360,
+            padding: const EdgeInsets.all(32),
+            decoration: decoracaoCaixa(),
+            child: Column(mainAxisSize: MainAxisSize.min, children: filhos),
+          ),
+        ),
+      ),
     );
   }
 }
