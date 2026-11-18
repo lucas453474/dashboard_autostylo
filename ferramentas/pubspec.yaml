@@ -1,0 +1,7 @@
+name: ferramentas
+description: Servidor estático do pacote da faculdade (serve a pasta web/ do app compilado).
+version: 1.0.0
+publish_to: none
+
+environment:
+  sdk: ^3.13.5
