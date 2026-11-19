@@ -1,13 +1,15 @@
-# Material de referência (tem dados reais de clientes)
+# anotacoes e material de estudo
+*.md
+!README.md
+.*/
+referencias/
 kit_dashboard_autostylo/
-
-# Dados de conexão com o banco (senha) - em qualquer pasta
-config.txt
-
-# Pacote para o PC da faculdade (executável + config.txt com senha)
 pacote_facul/
 
-# Arquivos gerados pelo Dart/Flutter
+# senha do banco
+config.txt
+
+# arquivos do dart e flutter
 .dart_tool/
 build/
 .packages

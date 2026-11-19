@@ -1,10 +1,10 @@
+// formulario de novo atendimento
 import 'package:flutter/material.dart';
 
 import 'api.dart';
 import 'componentes.dart';
 import 'cores.dart';
 
-// As 11 áreas que já existem em Dim_Servico.Area_Principal
 List<String> areasServico = [
   'Capô',
   'Lateral',
@@ -19,10 +19,6 @@ List<String> areasServico = [
   'Teto',
 ];
 
-// As formas de pagamento de Dim_Pagamento
-List<String> formasPagamento = ['DINHEIRO', 'CARTÃO', 'PIX'];
-
-// Verifica se o campo foi preenchido: devolve a mensagem de erro, ou '' se estiver ok
 String validaCampoVazio(String valor, String nomeCampo) {
   if (valor.trim().isEmpty) {
     return 'Preencha o campo "$nomeCampo".';
@@ -30,23 +26,6 @@ String validaCampoVazio(String valor, String nomeCampo) {
   return '';
 }
 
-// '2026-11-18' -> '18/11/2026' (para mostrar na tela)
-String dataNaTela(String data) {
-  if (data.isEmpty) {
-    return 'Escolher data';
-  }
-  List<String> partes = data.split('-');
-  return '${partes[2]}/${partes[1]}/${partes[0]}';
-}
-
-// DateTime -> '2026-11-18' (formato que a API espera)
-String dataParaApi(DateTime data) {
-  String mes = data.month.toString().padLeft(2, '0');
-  String dia = data.day.toString().padLeft(2, '0');
-  return '${data.year}-$mes-$dia';
-}
-
-// Formulário "Novo atendimento" (abre numa janela por cima do dashboard)
 class FormularioAtendimento extends StatefulWidget {
   final String token;
 
@@ -65,37 +44,21 @@ class EstadoFormulario extends State<FormularioAtendimento> {
   TextEditingController campoCor = TextEditingController();
   TextEditingController campoDescricao = TextEditingController();
   TextEditingController campoValor = TextEditingController();
-
-  // Listas e datas escolhidas ('' = ainda não escolheu)
   String area = '';
   String forma = '';
-  String dataEntrada = '';
-  String dataSaida = '';
-  String dataPagamento = '';
-
+  List<String> datas = ['', '', ''];
   String erro = '';
   bool salvando = false;
 
   void mudarArea(String? valor) {
-    if (valor == null) {
-      return;
-    }
-    setState(() {
-      area = valor;
-    });
+    area = valor!;
   }
 
   void mudarForma(String? valor) {
-    if (valor == null) {
-      return;
-    }
-    setState(() {
-      forma = valor;
-    });
+    forma = valor!;
   }
 
-  // Abre o calendário e devolve a data escolhida ('' se cancelar)
-  Future<String> escolherData() async {
+  Future<void> escolherData(int qual) async {
     DateTime? escolhida = await showDatePicker(
       context: context,
       initialDate: DateTime.now(),
@@ -106,39 +69,23 @@ class EstadoFormulario extends State<FormularioAtendimento> {
       confirmText: 'OK',
     );
     if (escolhida == null) {
-      return '';
-    }
-    return dataParaApi(escolhida);
-  }
-
-  Future<void> escolherEntrada() async {
-    String data = await escolherData();
-    if (data.isEmpty) {
       return;
     }
     setState(() {
-      dataEntrada = data;
+      datas[qual] = escolhida.toString().substring(0, 10);
     });
   }
 
-  Future<void> escolherSaida() async {
-    String data = await escolherData();
-    if (data.isEmpty) {
-      return;
-    }
-    setState(() {
-      dataSaida = data;
-    });
+  void escolherEntrada() {
+    escolherData(0);
   }
 
-  Future<void> escolherPagamento() async {
-    String data = await escolherData();
-    if (data.isEmpty) {
-      return;
-    }
-    setState(() {
-      dataPagamento = data;
-    });
+  void escolherSaida() {
+    escolherData(1);
+  }
+
+  void escolherPagamento() {
+    escolherData(2);
   }
 
   void mostrarErro(String mensagem) {
@@ -148,29 +95,20 @@ class EstadoFormulario extends State<FormularioAtendimento> {
     });
   }
 
-  // Clique em Salvar: valida, manda para a API (POST /cadastrar) e fecha a janela
   Future<void> salvar() async {
-    // Captura os dados do formulário
-    String cliente = campoCliente.text.trim();
-    String placa = campoPlaca.text.trim();
-    String modelo = campoModelo.text.trim();
-    String cor = campoCor.text.trim();
-    String descricao = campoDescricao.text.trim();
     String textoValor = campoValor.text.trim();
-
-    // Verifica se algum campo ficou vazio (um por um, com o nome do campo)
     List<String> valores = [
-      cliente,
-      placa,
-      modelo,
-      cor,
-      descricao,
+      campoCliente.text,
+      campoPlaca.text,
+      campoModelo.text,
+      campoCor.text,
+      campoDescricao.text,
       area,
       textoValor,
       forma,
-      dataEntrada,
-      dataSaida,
-      dataPagamento,
+      datas[0],
+      datas[1],
+      datas[2],
     ];
     List<String> nomes = [
       'Cliente',
@@ -193,7 +131,6 @@ class EstadoFormulario extends State<FormularioAtendimento> {
       }
     }
 
-    // Aceita valor com vírgula: '1.200,50' -> '1200.50'
     if (textoValor.contains(',')) {
       textoValor = textoValor.replaceAll('.', '').replaceAll(',', '.');
     }
@@ -208,29 +145,23 @@ class EstadoFormulario extends State<FormularioAtendimento> {
       erro = '';
     });
 
-    // Monta o JSON e manda para a API
-    Map<String, dynamic> dados = {
-      'cliente': cliente,
-      'placa': placa,
-      'modelo': modelo,
-      'cor': cor,
-      'descricao': descricao,
+    Map<String, dynamic> resposta = await chamarApi('cadastrar', widget.token, {
+      'cliente': campoCliente.text,
+      'placa': campoPlaca.text,
+      'modelo': campoModelo.text,
+      'cor': campoCor.text,
+      'descricao': campoDescricao.text,
       'area': area,
       'valor': valor.toStringAsFixed(2),
       'formaPagamento': forma,
-      'dataEntrada': dataEntrada,
-      'dataSaida': dataSaida,
-      'dataPagamento': dataPagamento,
-    };
-    Map<String, dynamic> resposta = await cadastrarAtendimento(widget.token, dados);
-
-    // A API recusou (ex.: saída antes da entrada): mostra a mensagem dela
+      'dataEntrada': datas[0],
+      'dataSaida': datas[1],
+      'dataPagamento': datas[2],
+    });
     if (resposta['STATUS'] != 1) {
       mostrarErro(resposta['MSG'].toString());
       return;
     }
-
-    // Deu certo: fecha a janela e devolve a mensagem para o dashboard
     if (!mounted) {
       return;
     }
@@ -241,60 +172,48 @@ class EstadoFormulario extends State<FormularioAtendimento> {
     Navigator.pop(context);
   }
 
-  // Campo de texto com rótulo
+  InputDecoration decoracaoCampo(String rotulo) {
+    return InputDecoration(
+      labelText: rotulo,
+      labelStyle: const TextStyle(color: corTextoSecundario, fontSize: 13),
+      filled: true,
+      fillColor: corFiltro,
+      isDense: true,
+      enabledBorder: const OutlineInputBorder(borderSide: BorderSide(color: corGrade)),
+    );
+  }
+
   Widget campoTexto(String rotulo, TextEditingController controle) {
     return TextField(
       controller: controle,
       style: const TextStyle(color: corTexto, fontSize: 13),
-      decoration: InputDecoration(
-        labelText: rotulo,
-        labelStyle: const TextStyle(color: corTextoSecundario, fontSize: 13),
-        filled: true,
-        fillColor: corFiltro,
-        isDense: true,
-        enabledBorder: const OutlineInputBorder(borderSide: BorderSide(color: corGrade)),
+      decoration: decoracaoCampo(rotulo).copyWith(
         focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: corMenuAtivo)),
       ),
     );
   }
 
-  // Lista de opções (dropdown) com rótulo
-  Widget campoLista(
-    String rotulo,
-    String valor,
-    List<String> opcoes,
-    ValueChanged<String?> aoMudar,
-  ) {
+  Widget campoLista(String rotulo, List<String> opcoes, ValueChanged<String?> aoMudar) {
     List<DropdownMenuItem<String>> itens = [];
     for (String opcao in opcoes) {
       itens.add(DropdownMenuItem<String>(value: opcao, child: Text(opcao)));
     }
-
-    // null = nada escolhido ainda (mostra só o rótulo)
-    String? escolhido;
-    if (valor.isNotEmpty) {
-      escolhido = valor;
-    }
-
     return DropdownButtonFormField<String>(
-      initialValue: escolhido,
       items: itens,
       onChanged: aoMudar,
       dropdownColor: corFiltro,
       style: const TextStyle(color: corTexto, fontSize: 13),
-      decoration: InputDecoration(
-        labelText: rotulo,
-        labelStyle: const TextStyle(color: corTextoSecundario, fontSize: 13),
-        filled: true,
-        fillColor: corFiltro,
-        isDense: true,
-        enabledBorder: const OutlineInputBorder(borderSide: BorderSide(color: corGrade)),
-      ),
+      decoration: decoracaoCampo(rotulo),
     );
   }
 
-  // Botão que abre o calendário e mostra a data escolhida
   Widget campoData(String rotulo, String data, VoidCallback aoClicar) {
+    String texto = 'Escolher data';
+    if (data.isNotEmpty) {
+      List<String> partes = data.split('-');
+      texto = '${partes[2]}/${partes[1]}/${partes[0]}';
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -310,7 +229,7 @@ class EstadoFormulario extends State<FormularioAtendimento> {
               children: [
                 const Icon(Icons.calendar_today, size: 14, color: corTextoSecundario),
                 const SizedBox(width: 8),
-                Text(dataNaTela(data), style: const TextStyle(color: corTexto, fontSize: 13)),
+                Text(texto, style: const TextStyle(color: corTexto, fontSize: 13)),
               ],
             ),
           ),
@@ -321,7 +240,6 @@ class EstadoFormulario extends State<FormularioAtendimento> {
 
   @override
   Widget build(BuildContext context) {
-    // Enquanto salva, o botão fica desligado
     String textoBotao = 'Salvar';
     VoidCallback? acaoBotao = salvar;
     if (salvando) {
@@ -351,32 +269,28 @@ class EstadoFormulario extends State<FormularioAtendimento> {
       const SizedBox(height: 12),
       Row(
         children: [
-          Expanded(flex: 3, child: campoLista('Área', area, areasServico, mudarArea)),
+          Expanded(flex: 3, child: campoLista('Área', areasServico, mudarArea)),
           const SizedBox(width: 12),
           Expanded(flex: 2, child: campoTexto('Valor (R\$)', campoValor)),
         ],
       ),
       const SizedBox(height: 12),
-      campoLista('Forma de pagamento', forma, formasPagamento, mudarForma),
+      campoLista('Forma de pagamento', ['DINHEIRO', 'CARTÃO', 'PIX'], mudarForma),
       const SizedBox(height: 12),
       Row(
         children: [
-          Expanded(child: campoData('Data de entrada', dataEntrada, escolherEntrada)),
+          Expanded(child: campoData('Data de entrada', datas[0], escolherEntrada)),
           const SizedBox(width: 12),
-          Expanded(child: campoData('Data de saída', dataSaida, escolherSaida)),
+          Expanded(child: campoData('Data de saída', datas[1], escolherSaida)),
           const SizedBox(width: 12),
-          Expanded(child: campoData('Data de pagamento', dataPagamento, escolherPagamento)),
+          Expanded(child: campoData('Data de pagamento', datas[2], escolherPagamento)),
         ],
       ),
     ];
-
-    // Mensagem de erro (se tiver)
     if (erro.isNotEmpty) {
       filhos.add(const SizedBox(height: 12));
       filhos.add(Text(erro, style: const TextStyle(color: corErro, fontSize: 13)));
     }
-
-    // Botões Cancelar e Salvar
     filhos.add(const SizedBox(height: 20));
     filhos.add(
       Row(

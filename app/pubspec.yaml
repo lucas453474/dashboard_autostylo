@@ -20,7 +20,6 @@ flutter:
   assets:
     - assets/logo_autostylo.png
 
-  # Fonte dentro do app: funciona sem internet (licença em assets/fontes/LICENSE_Roboto.txt)
   fonts:
     - family: RobotoLocal
       fonts:

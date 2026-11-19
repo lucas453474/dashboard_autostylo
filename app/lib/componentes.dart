@@ -1,3 +1,4 @@
+// pecas do dashboard
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
@@ -5,12 +6,11 @@ import 'calculos.dart';
 import 'cores.dart';
 import 'tempos.dart';
 
-// Estilos de texto usados em vários lugares
 const TextStyle estiloTituloCaixa = TextStyle(color: corTexto, fontSize: 11);
 const TextStyle estiloSubtitulo = TextStyle(color: corTextoSecundario, fontSize: 10);
 const TextStyle estiloEixo = TextStyle(color: corTextoSecundario, fontSize: 9);
+const Widget semDados = Center(child: Text('Sem dados', style: estiloSubtitulo));
 
-// Decoração das caixas (fundo, borda sutil e cantos arredondados)
 BoxDecoration decoracaoCaixa() {
   return BoxDecoration(
     color: corCard,
@@ -19,7 +19,14 @@ BoxDecoration decoracaoCaixa() {
   );
 }
 
-// Caixa com título onde ficam os gráficos
+BoxDecoration decoracaoFiltro() {
+  return BoxDecoration(
+    color: corFiltro,
+    borderRadius: BorderRadius.circular(4),
+    border: Border.all(color: corGrade),
+  );
+}
+
 class CaixaGrafico extends StatelessWidget {
   final String titulo;
   final String subtitulo;
@@ -29,7 +36,6 @@ class CaixaGrafico extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Monta a lista de filhos: título, subtítulo (se tiver) e o gráfico
     List<Widget> filhos = [Text(titulo, style: estiloTituloCaixa)];
     if (subtitulo.isNotEmpty) {
       filhos.add(Text(subtitulo, style: estiloSubtitulo));
@@ -45,7 +51,6 @@ class CaixaGrafico extends StatelessWidget {
   }
 }
 
-// Card com um número grande (ex.: Clientes únicos 131)
 class CardNumero extends StatelessWidget {
   final String titulo;
   final String valor;
@@ -68,8 +73,6 @@ class CardNumero extends StatelessWidget {
   }
 }
 
-// Linha da grade colocada numa posição de 0.0 (início) a 1.0 (fim)
-// Alignment vai de -1 (esquerda/baixo) até 1 (direita/cima)
 Widget linhaDaGrade(double posicao, bool vertical) {
   if (vertical) {
     return Align(
@@ -91,7 +94,6 @@ Widget linhaDaGrade(double posicao, bool vertical) {
   );
 }
 
-// Maior número da lista (o tamanho de cada barra é valor / maiorValor)
 double maiorValor(List<double> valores) {
   double maior = 0;
   for (double valor in valores) {
@@ -102,147 +104,108 @@ double maiorValor(List<double> valores) {
   return maior;
 }
 
-// BARRAS HORIZONTAIS feitas à mão: um Container por barra, dentro de um for
 class BarrasHorizontais extends StatelessWidget {
   final List<String> nomes;
   final List<double> valores;
-  final String formato; // 'numero' ou 'mil'
+  final String formato;
 
   const BarrasHorizontais(this.nomes, this.valores, this.formato, {super.key});
-
-  // Desenha as barras. O LayoutBuilder entrega a largura disponível (limites.maxWidth)
-  // e o AnimatedContainer faz a barra deslizar até o novo tamanho quando o filtro muda.
-  Widget desenharBarras(BuildContext context, BoxConstraints limites) {
-    double maior = maiorValor(valores);
-    List<Widget> colunaBarras = [];
-    for (int i = 0; i < nomes.length; i++) {
-      colunaBarras.add(
-        Expanded(
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Tooltip(
-              message: '${nomes[i]}: ${formatarValor(valores[i], formato)}',
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: tempoBarras),
-                curve: Curves.easeOut,
-                width: limites.maxWidth * valores[i] / maior,
-                height: 12,
-                color: corBarraHorizontal,
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-    return Column(children: colunaBarras);
-  }
 
   @override
   Widget build(BuildContext context) {
     double maior = maiorValor(valores);
     if (maior == 0) {
-      return const Center(child: Text('Sem dados', style: estiloSubtitulo));
+      return semDados;
     }
-    double passo = passoDoEixo(maior);
 
-    // Nomes à esquerda (as barras ficam à direita, em desenharBarras)
-    List<Widget> colunaNomes = [];
-    for (int i = 0; i < nomes.length; i++) {
-      colunaNomes.add(
-        Expanded(
-          child: Align(
-            alignment: Alignment.centerRight,
-            child: Text(nomes[i], style: estiloEixo, overflow: TextOverflow.ellipsis),
-          ),
-        ),
-      );
-    }
-    colunaNomes.add(const SizedBox(height: 16));
-
-    // Linhas da grade e números do eixo de baixo
     List<Widget> grade = [];
-    List<Widget> numerosEixo = [];
-    for (double marca = 0; marca <= maior; marca += passo) {
+    List<Widget> numeros = [];
+    for (double marca = 0; marca <= maior; marca += passoDoEixo(maior)) {
       grade.add(linhaDaGrade(marca / maior, true));
-      numerosEixo.add(
+      numeros.add(
         Align(
           alignment: Alignment(marca / maior * 2 - 1, 0),
           child: Text(formatarEixo(marca, formato), style: estiloEixo),
         ),
       );
     }
-    grade.add(LayoutBuilder(builder: desenharBarras));
 
-    return Row(
-      children: [
-        SizedBox(width: 120, child: Column(children: colunaNomes)),
-        const SizedBox(width: 8),
+    List<Widget> linhas = [];
+    for (int i = 0; i < nomes.length; i++) {
+      linhas.add(
         Expanded(
-          child: Column(
+          child: Row(
             children: [
-              Expanded(child: Stack(children: grade)),
-              SizedBox(height: 16, child: Stack(children: numerosEixo)),
+              SizedBox(
+                width: 120,
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(nomes[i], style: estiloEixo, overflow: TextOverflow.ellipsis),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: AnimatedFractionallySizedBox(
+                  duration: const Duration(milliseconds: tempoBarras),
+                  curve: Curves.easeOut,
+                  alignment: Alignment.centerLeft,
+                  widthFactor: valores[i] / maior,
+                  child: Center(
+                    child: Tooltip(
+                      message: '${nomes[i]}: ${formatarValor(valores[i], formato)}',
+                      child: Container(height: 12, color: corBarraHorizontal),
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        Expanded(
+          child: Stack(
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(left: 128),
+                child: Stack(children: grade),
+              ),
+              Column(children: linhas),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(left: 128),
+          child: SizedBox(height: 16, child: Stack(children: numeros)),
         ),
       ],
     );
   }
 }
 
-// BARRAS VERTICAIS feitas à mão: um Container por barra, dentro de um for
 class BarrasVerticais extends StatelessWidget {
-  final List<String> rotulos; // texto embaixo de cada barra ('' = sem texto)
-  final List<String> dicas; // texto do balão ao passar o mouse
+  final List<String> rotulos;
+  final List<String> dicas;
   final List<double> valores;
-  final String formato; // 'numero' ou 'mil'
+  final String formato;
 
   const BarrasVerticais(this.rotulos, this.dicas, this.valores, this.formato, {super.key});
-
-  // Desenha as barras. O LayoutBuilder entrega a altura disponível (limites.maxHeight)
-  // e o AnimatedContainer faz a barra subir/descer até o novo tamanho quando o filtro muda.
-  Widget desenharBarras(BuildContext context, BoxConstraints limites) {
-    double maior = maiorValor(valores);
-    List<Widget> barras = [];
-    for (int i = 0; i < valores.length; i++) {
-      barras.add(
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Align(
-              alignment: Alignment.bottomCenter,
-              child: Tooltip(
-                message: '${dicas[i]}: ${formatarValor(valores[i], formato)}',
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: tempoBarras),
-                  curve: Curves.easeOut,
-                  width: double.infinity,
-                  height: limites.maxHeight * valores[i] / maior,
-                  color: corBarraVertical,
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-    return Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: barras);
-  }
 
   @override
   Widget build(BuildContext context) {
     double maior = maiorValor(valores);
     if (maior == 0) {
-      return const Center(child: Text('Sem dados', style: estiloSubtitulo));
+      return semDados;
     }
-    double passo = passoDoEixo(maior);
 
-    // Linhas da grade e números do eixo da esquerda
     List<Widget> grade = [];
-    List<Widget> numerosEixo = [];
-    for (double marca = 0; marca <= maior; marca += passo) {
+    List<Widget> numeros = [];
+    for (double marca = 0; marca <= maior; marca += passoDoEixo(maior)) {
       grade.add(linhaDaGrade(marca / maior, false));
-      numerosEixo.add(
+      numeros.add(
         Align(
           alignment: Alignment(1, 1 - marca / maior * 2),
           child: Text(formatarEixo(marca, formato), style: estiloEixo),
@@ -250,10 +213,27 @@ class BarrasVerticais extends StatelessWidget {
       );
     }
 
-    // Um rótulo embaixo de cada barra (as barras ficam em desenharBarras)
-    List<Widget> textosEmbaixo = [];
+    List<Widget> barras = [];
+    List<Widget> textos = [];
     for (int i = 0; i < valores.length; i++) {
-      textosEmbaixo.add(
+      barras.add(
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: AnimatedFractionallySizedBox(
+              duration: const Duration(milliseconds: tempoBarras),
+              curve: Curves.easeOut,
+              alignment: Alignment.bottomCenter,
+              heightFactor: valores[i] / maior,
+              child: Tooltip(
+                message: '${dicas[i]}: ${formatarValor(valores[i], formato)}',
+                child: Container(color: corBarraVertical),
+              ),
+            ),
+          ),
+        ),
+      );
+      textos.add(
         Expanded(
           child: Center(
             child: Text(
@@ -266,48 +246,43 @@ class BarrasVerticais extends StatelessWidget {
         ),
       );
     }
-    grade.add(LayoutBuilder(builder: desenharBarras));
+    grade.add(Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: barras));
 
     return Column(
       children: [
         Expanded(
           child: Row(
             children: [
-              SizedBox(width: 56, child: Stack(children: numerosEixo)),
+              SizedBox(width: 56, child: Stack(children: numeros)),
               const SizedBox(width: 6),
               Expanded(child: Stack(children: grade)),
             ],
           ),
         ),
-        SizedBox(
-          height: 16,
-          child: Row(
-            children: [
-              const SizedBox(width: 62),
-              Expanded(child: Row(children: textosEmbaixo)),
-            ],
-          ),
+        Padding(
+          padding: const EdgeInsets.only(left: 62),
+          child: SizedBox(height: 16, child: Row(children: textos)),
         ),
       ],
     );
   }
 }
 
-// GRÁFICO DE LINHA (o único que usa pacote: fl_chart)
 class GraficoLinha extends StatelessWidget {
-  final List<String> meses; // '2025-01', '2025-02', ...
+  final List<String> meses;
   final List<double> valores;
 
   const GraficoLinha(this.meses, this.valores, {super.key});
 
-  // Linha cinza da grade
   FlLine linhaCinza(double valor) {
     return const FlLine(color: corGrade, strokeWidth: 1);
   }
 
-  // Números do eixo da esquerda
+  Color corDoBalao(LineBarSpot ponto) {
+    return corBalao;
+  }
+
   Widget numeroEsquerda(double valor, TitleMeta meta) {
-    // Esconde o número da ponta que não cai no intervalo (ex.: 3 quando o passo é 2)
     if (valor % meta.appliedInterval != 0) {
       return const SizedBox();
     }
@@ -317,35 +292,27 @@ class GraficoLinha extends StatelessWidget {
     );
   }
 
-  // Meses do eixo de baixo (só jan, abr, jul e out, igual ao BI)
   Widget mesEmbaixo(double valor, TitleMeta meta) {
     int indice = valor.toInt();
     if (indice < 0 || indice >= meses.length || valor != indice) {
       return const SizedBox();
     }
-    int mes = numeroDoMes(meses[indice]);
-    if (mes != 1 && mes != 4 && mes != 7 && mes != 10) {
+    String rotulo = rotuloDoEixo(meses[indice]);
+    if (rotulo.isEmpty) {
       return const SizedBox();
     }
     return SideTitleWidget(
       meta: meta,
-      child: Text(mesCurto(meses[indice]), style: estiloEixo),
+      child: Text(rotulo, style: estiloEixo),
     );
   }
 
-  // Cor de fundo do balão
-  Color corDoBalao(LineBarSpot ponto) {
-    return const Color(0xFF2B2D30);
-  }
-
-  // Texto do balão: "janeiro de 2025 — Total de Atendimentos 7"
   List<LineTooltipItem> textoDoBalao(List<LineBarSpot> pontos) {
     List<LineTooltipItem> itens = [];
     for (LineBarSpot ponto in pontos) {
-      String mes = mesLongo(meses[ponto.x.toInt()]);
       itens.add(
         LineTooltipItem(
-          '$mes\n',
+          '${mesLongo(meses[ponto.x.toInt()])}\n',
           const TextStyle(color: corTexto, fontWeight: FontWeight.bold, fontSize: 12),
           children: [
             TextSpan(
@@ -362,22 +329,19 @@ class GraficoLinha extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (meses.isEmpty) {
-      return const Center(child: Text('Sem dados', style: estiloSubtitulo));
+      return semDados;
     }
 
-    // Um ponto (x = posição do mês, y = total) para cada mês
     List<FlSpot> pontos = [];
     for (int i = 0; i < meses.length; i++) {
       pontos.add(FlSpot(i.toDouble(), valores[i]));
     }
 
-    AxisTitles semTitulos = const AxisTitles(sideTitles: SideTitles(showTitles: false));
-
-    // O eixo X vai do primeiro ao último mês (no mínimo 1, para não ficar com largura zero)
     double ultimoX = meses.length - 1;
     if (ultimoX < 1) {
       ultimoX = 1;
     }
+    AxisTitles semTitulos = const AxisTitles(sideTitles: SideTitles(showTitles: false));
 
     return LineChart(
       LineChartData(
@@ -422,12 +386,11 @@ class GraficoLinha extends StatelessWidget {
           ),
         ],
       ),
-      duration: Duration.zero, // sem animação na Fase 1
+      duration: Duration.zero,
     );
   }
 }
 
-// TABELA "Resumo financeiro mensal" (com rolagem e linha de Total)
 class TabelaResumo extends StatelessWidget {
   final List<String> meses;
   final List<double> valores;
@@ -435,7 +398,6 @@ class TabelaResumo extends StatelessWidget {
 
   const TabelaResumo(this.meses, this.valores, this.quantidades, {super.key});
 
-  // Uma linha da tabela com 3 colunas
   Widget linha(String mes, String valor, String total, TextStyle estilo) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 6),
@@ -459,28 +421,21 @@ class TabelaResumo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     TextStyle estilo = const TextStyle(color: corTexto, fontSize: 10);
-    TextStyle estiloCabecalho = const TextStyle(color: corTextoSecundario, fontSize: 10);
 
-    // Uma linha por mês, somando o total no final
     List<Widget> linhas = [];
     double somaValor = 0;
     double somaQuantidade = 0;
     for (int i = 0; i < meses.length; i++) {
-      linhas.add(
-        linha(
-          mesTabela(meses[i]),
-          formatarReais(valores[i]),
-          quantidades[i].toStringAsFixed(0),
-          estilo,
-        ),
-      );
+      List<String> partes = meses[i].split('-');
+      String mes = '01/${partes[1]}/${partes[0].substring(2)}';
+      linhas.add(linha(mes, formatarReais(valores[i]), quantidades[i].toStringAsFixed(0), estilo));
       somaValor += valores[i];
       somaQuantidade += quantidades[i];
     }
 
     return Column(
       children: [
-        linha('AnoMês', 'Valor dos Serviços', 'Total Atendimentos', estiloCabecalho),
+        linha('AnoMês', 'Valor dos Serviços', 'Total Atendimentos', estiloSubtitulo),
         Expanded(
           child: SingleChildScrollView(child: Column(children: linhas)),
         ),
@@ -495,18 +450,16 @@ class TabelaResumo extends StatelessWidget {
   }
 }
 
-// FILTRO (dropdown) com o título em cima — igual aos filtros do BI
 class CaixaFiltro extends StatelessWidget {
   final String titulo;
   final String valorAtual;
   final List<String> opcoes;
-  final ValueChanged<String?> aoMudar; // função chamada quando escolhe uma opção
+  final ValueChanged<String?> aoMudar;
 
   const CaixaFiltro(this.titulo, this.valorAtual, this.opcoes, this.aoMudar, {super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Um item no dropdown para cada opção
     List<DropdownMenuItem<String>> itens = [];
     for (String opcao in opcoes) {
       itens.add(
@@ -546,27 +499,16 @@ class CaixaFiltro extends StatelessWidget {
   }
 }
 
-// Decoração dos filtros (o botão "+ Adicionar" usa a mesma)
-BoxDecoration decoracaoFiltro() {
-  return BoxDecoration(
-    color: corFiltro,
-    borderRadius: BorderRadius.circular(4),
-    border: Border.all(color: corGrade),
-  );
-}
-
-// ITEM DO MENU LATERAL (Operação / Financeiro)
 class ItemMenu extends StatelessWidget {
   final IconData icone;
   final String texto;
   final bool ativo;
-  final VoidCallback aoClicar; // função chamada no clique
+  final VoidCallback aoClicar;
 
   const ItemMenu(this.icone, this.texto, this.ativo, this.aoClicar, {super.key});
 
   @override
   Widget build(BuildContext context) {
-    // O item ativo tem fundo mais claro e uma barrinha azul na esquerda
     Color fundo = Colors.transparent;
     Color barrinha = Colors.transparent;
     if (ativo) {
